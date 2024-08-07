@@ -5,19 +5,17 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.IO.Pipelines;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Protocol;
+using Microsoft.Azure.SignalR.Common;
 using Microsoft.Azure.SignalR.Controllers.Common;
 using Microsoft.Azure.SignalR.Emulator.HubEmulator;
 using Microsoft.Extensions.Logging;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Microsoft.Azure.SignalR.Emulator.Controllers
 {
@@ -107,6 +105,8 @@ namespace Microsoft.Azure.SignalR.Emulator.Controllers
                 }
             }
 
+            Response.SetMsErrorCodeHeader(Constants.ErrorCodes.WarningConnectionNotExisted);
+
             return NotFound();
         }
 
@@ -132,6 +132,8 @@ namespace Microsoft.Azure.SignalR.Emulator.Controllers
                 }
             }
 
+            Response.SetMsErrorCodeHeader(Constants.ErrorCodes.WarningGroupNotExisted);
+
             return NotFound();
         }
 
@@ -156,6 +158,8 @@ namespace Microsoft.Azure.SignalR.Emulator.Controllers
                     }
                 }
             }
+
+            Response.SetMsErrorCodeHeader(Constants.ErrorCodes.WarningUserNotExisted);
 
             return NotFound();
         }
@@ -220,7 +224,7 @@ namespace Microsoft.Azure.SignalR.Emulator.Controllers
             }
 
             if (_store.TryGetLifetimeContext(GetInternalHubName(application, hub), out var c))
-            { 
+            {
                 c.UserGroupManager.RemoveConnectionFromAllGroups(connectionId);
                 return Ok();
             }
@@ -455,7 +459,7 @@ namespace Microsoft.Azure.SignalR.Emulator.Controllers
 
             if (_store.TryGetLifetimeContext(GetInternalHubName(application, hub), out var c))
             {
-                foreach(var cc in c.UserGroupManager.GetConnectionsForGroup(group).Value)
+                foreach (var cc in c.UserGroupManager.GetConnectionsForGroup(group).Value)
                 {
                     var lifetime = c.LifetimeManager;
                     var connection = lifetime.Connections[cc];

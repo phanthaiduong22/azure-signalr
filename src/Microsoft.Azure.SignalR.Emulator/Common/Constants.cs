@@ -37,5 +37,18 @@ namespace Microsoft.Azure.SignalR.Common
             public const string AsrsClientCertThumbprint = AsrsHeaderPrefix + "Client-Cert-Thumbprint";
             public const string AsrsConnectionGroups = AsrsHeaderPrefix + "Connection-Group";
         }
+
+        public static class ErrorCodes
+        {
+            public const string WarningConnectionNotExisted = "Warning.Connection.NotExisted";
+
+            public const string WarningUserNotExisted = "Warning.User.NotExisted";
+
+            public const string WarningGroupNotExisted = "Warning.Group.NotExisted";
+
+            public const string InfoUserNotInGroup = "Info.User.NotInGroup";
+
+            public const string ErrorConnectionNotExisted = "Error.Connection.NotExisted";
+        }
     }
 }
