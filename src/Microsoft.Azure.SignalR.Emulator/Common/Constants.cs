@@ -38,17 +38,49 @@ namespace Microsoft.Azure.SignalR.Common
             public const string AsrsConnectionGroups = AsrsHeaderPrefix + "Connection-Group";
         }
 
+        public enum ErrorCodeLevel
+        {
+            Warning,
+            Info,
+            Error
+        }
+
+        public enum ErrorCodeScope
+        {
+            Connection,
+            User,
+            Group
+        }
+
+        public enum ErrorCodeKind
+        {
+            NotExisted,
+            NotInGroup
+        }
+
         public static class ErrorCodes
         {
-            public const string WarningConnectionNotExisted = "Warning.Connection.NotExisted";
+            public static string BuildErrorCode(ErrorCodeLevel level, ErrorCodeScope scope, ErrorCodeKind kind)
+            {
+                return $"{level}.{scope}.{kind}";
+            }
 
-            public const string WarningUserNotExisted = "Warning.User.NotExisted";
+            public static class Warning
+            {
+                public static string ConnectionNotExisted => BuildErrorCode(ErrorCodeLevel.Warning, ErrorCodeScope.Connection, ErrorCodeKind.NotExisted);
+                public static string UserNotExisted => BuildErrorCode(ErrorCodeLevel.Warning, ErrorCodeScope.User, ErrorCodeKind.NotExisted);
+                public static string GroupNotExisted => BuildErrorCode(ErrorCodeLevel.Warning, ErrorCodeScope.Group, ErrorCodeKind.NotExisted);
+            }
 
-            public const string WarningGroupNotExisted = "Warning.Group.NotExisted";
+            public static class Info
+            {
+                public static string UserNotInGroup => BuildErrorCode(ErrorCodeLevel.Info, ErrorCodeScope.User, ErrorCodeKind.NotInGroup);
+            }
 
-            public const string InfoUserNotInGroup = "Info.User.NotInGroup";
-
-            public const string ErrorConnectionNotExisted = "Error.Connection.NotExisted";
+            public static class Error
+            {
+                public static string ConnectionNotExisted => BuildErrorCode(ErrorCodeLevel.Error, ErrorCodeScope.Connection, ErrorCodeKind.NotExisted);
+            }
         }
     }
 }

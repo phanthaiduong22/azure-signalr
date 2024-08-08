@@ -105,7 +105,7 @@ namespace Microsoft.Azure.SignalR.Emulator.Controllers
                 }
             }
 
-            Response.SetMsErrorCodeHeader(Constants.ErrorCodes.WarningConnectionNotExisted);
+            Response.SetMsErrorCodeHeader(Constants.ErrorCodes.Warning.ConnectionNotExisted);
 
             return NotFound();
         }
@@ -132,7 +132,7 @@ namespace Microsoft.Azure.SignalR.Emulator.Controllers
                 }
             }
 
-            Response.SetMsErrorCodeHeader(Constants.ErrorCodes.WarningGroupNotExisted);
+            Response.SetMsErrorCodeHeader(Constants.ErrorCodes.Warning.GroupNotExisted);
 
             return NotFound();
         }
@@ -159,7 +159,7 @@ namespace Microsoft.Azure.SignalR.Emulator.Controllers
                 }
             }
 
-            Response.SetMsErrorCodeHeader(Constants.ErrorCodes.WarningUserNotExisted);
+            Response.SetMsErrorCodeHeader(Constants.ErrorCodes.Warning.UserNotExisted);
 
             return NotFound();
         }
@@ -229,6 +229,8 @@ namespace Microsoft.Azure.SignalR.Emulator.Controllers
                 return Ok();
             }
 
+            Response.SetMsErrorCodeHeader(Constants.ErrorCodes.Error.ConnectionNotExisted);
+
             return Ok();
         }
 
@@ -256,6 +258,8 @@ namespace Microsoft.Azure.SignalR.Emulator.Controllers
                     return Ok();
                 }
             }
+
+            Response.SetMsErrorCodeHeader(Constants.ErrorCodes.Error.ConnectionNotExisted);
 
             return NotFound();
         }
@@ -340,6 +344,8 @@ namespace Microsoft.Azure.SignalR.Emulator.Controllers
                     return Ok();
                 }
             }
+
+            Response.SetMsErrorCodeHeader(Constants.ErrorCodes.Info.UserNotInGroup);
 
             return NotFound();
         }
