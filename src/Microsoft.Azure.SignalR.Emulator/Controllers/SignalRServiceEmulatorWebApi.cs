@@ -24,10 +24,10 @@ namespace Microsoft.Azure.SignalR.Emulator.Controllers
     {
         private const string HubPattern = "^[A-Za-z][A-Za-z0-9_`,.[\\]]{0,127}$";
         private const string GroupPattern = "^\\S{1,1024}$";
-        private readonly DynamicHubContextStore _store;
+        private readonly IDynamicHubContextStore _store;
         private readonly ILogger<SignalRServiceEmulatorWebApi> _logger;
 
-        public SignalRServiceEmulatorWebApi(DynamicHubContextStore store, ILogger<SignalRServiceEmulatorWebApi> _logger) : base()
+        public SignalRServiceEmulatorWebApi(IDynamicHubContextStore store, ILogger<SignalRServiceEmulatorWebApi> _logger) : base()
         {
             _store = store;
             this._logger = _logger;
