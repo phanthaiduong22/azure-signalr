@@ -8,7 +8,6 @@
     <ToolCommandName>asrs-emulator</ToolCommandName>
     <PackageOutputPath>$(MSBuildThisFileDirectory)..\..\artifacts\build</PackageOutputPath>
     <IsPackable>true</IsPackable>
-	<!--<TreatWarningsAsErrors>false</TreatWarningsAsErrors>-->
   </PropertyGroup>
 
   <ItemGroup>
