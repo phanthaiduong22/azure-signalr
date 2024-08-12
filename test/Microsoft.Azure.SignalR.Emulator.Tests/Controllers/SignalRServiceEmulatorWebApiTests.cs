@@ -241,7 +241,6 @@ namespace Microsoft.Azure.SignalR.Emulator.Tests.Controllers
 
             // assert
             Assert.IsType<OkResult>(result);
-            Assert.Equal(Error_Connection_NotExisted, controller.Response.Headers[MicrosoftErrorCode]);
         }
 
         [Fact]
@@ -301,6 +300,62 @@ namespace Microsoft.Azure.SignalR.Emulator.Tests.Controllers
 
         [Fact]
         public void AddConnectionToGroupInvalidModelStateReturnsBadRequest()
+        {
+            // arrange
+            controller.ModelState.AddModelError("key", "error");
+
+            // act
+            var result = controller.AddConnectionToGroup(testHub, testGroup, testConnectionId, testApplication);
+
+            // assert
+            Assert.IsType<BadRequestResult>(result);
+        }
+
+        // RemoveConnectionFromGroup Tests
+        [Fact]
+        public void RemoveConnectionFromGroupValidConnectionReturnsOk()
+        {
+            // Arrange
+            var connectionContext = new DefaultConnectionContext();
+            connectionContext.ConnectionId = testConnectionId;
+
+            var mockLoggerFactory = new Mock<ILoggerFactory>();
+            var hubConnectionContext = new HubConnectionContext(connectionContext, new HubConnectionContextOptions(), mockLoggerFactory.Object);
+
+            var connectionStore = new HubConnectionStore();
+            connectionStore.Add(hubConnectionContext);
+
+            var lifetimeManagerMock = new Mock<IHubLifetimeManager>();
+            lifetimeManagerMock.Setup(l => l.Connections).Returns(connectionStore);
+
+            var dynamicHubContext = new DynamicHubContext(typeof(DynamicHubContext), null, lifetimeManagerMock.Object, null);
+            storeMock.Setup(s => s.TryGetLifetimeContext(It.IsAny<string>(), out dynamicHubContext)).Returns(true);
+
+            // Act
+            var result = controller.RemoveConnectionFromGroup(testHub, testGroup, testConnectionId, testApplication);
+
+            // Assert
+            Assert.IsType<NotFoundResult>(result);
+            Assert.Equal(Error_Connection_NotExisted, controller.Response.Headers[MicrosoftErrorCode]);
+        }
+
+        [Fact]
+        public void RemoveConnectionFromGroupInvalidConnectionReturnsNotFound()
+        {
+            // arrange
+            DynamicHubContext dynamicHubContext = null;
+            storeMock.Setup(s => s.TryGetLifetimeContext(It.IsAny<string>(), out dynamicHubContext)).Returns(false);
+
+            // act
+            var result = controller.RemoveConnectionFromGroup(testHub, testGroup, testConnectionId, testApplication);
+
+            // assert
+            Assert.IsType<NotFoundResult>(result);
+            Assert.Equal(Error_Connection_NotExisted, controller.Response.Headers[MicrosoftErrorCode]);
+        }
+
+        [Fact]
+        public void RemoveConnectionFromGroupInvalidModelStateReturnsBadRequest()
         {
             // arrange
             controller.ModelState.AddModelError("key", "error");

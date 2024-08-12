@@ -210,6 +210,8 @@ namespace Microsoft.Azure.SignalR.Emulator.Controllers
                 }
             }
 
+            Response.SetMsErrorCodeHeader(Constants.ErrorCodes.Error.ConnectionNotExisted);
+
             return NotFound();
         }
 
@@ -228,8 +230,6 @@ namespace Microsoft.Azure.SignalR.Emulator.Controllers
                 c.UserGroupManager.RemoveConnectionFromAllGroups(connectionId);
                 return Ok();
             }
-
-            Response.SetMsErrorCodeHeader(Constants.ErrorCodes.Error.ConnectionNotExisted);
 
             return Ok();
         }

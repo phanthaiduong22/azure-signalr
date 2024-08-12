@@ -6,5 +6,7 @@ namespace Microsoft.Azure.SignalR.Emulator.HubEmulator
     internal interface IDynamicHubContextStore
     {
         bool TryGetLifetimeContext(string hub, out DynamicHubContext context);
+
+        public DynamicHubContext GetOrAdd(string hub);
     }
 }

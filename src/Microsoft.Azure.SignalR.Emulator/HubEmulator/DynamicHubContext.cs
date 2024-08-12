@@ -24,7 +24,7 @@ namespace Microsoft.Azure.SignalR.Emulator.HubEmulator
             ConnectionHandler = connectionHandler;
         }
 
-        public DynamicHubContext()
+        protected DynamicHubContext()
         {
         }
 
