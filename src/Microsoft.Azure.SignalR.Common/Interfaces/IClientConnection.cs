@@ -1,7 +1,11 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Threading.Tasks;
+
 namespace Microsoft.Azure.SignalR;
+
+#nullable enable
 
 internal interface IClientConnection
 {
@@ -24,5 +28,11 @@ internal interface IClientConnection
     /// <summary>
     /// The server connection associated with this client connection.
     /// </summary>
-    IServiceConnection ServiceConnection { get; }
+    IServiceConnection? ServiceConnection { get; set; }
+
+    Task PauseAsync();
+
+    Task PauseAckAsync();
+
+    Task ResumeAsync();
 }

@@ -35,31 +35,44 @@ internal partial class ServiceConnection : ServiceConnectionBase
 
     private readonly AckHandler _ackHandler;
 
-    public ServiceConnection(
-        string serverId,
-        string connectionId,
-        HubServiceEndpoint endpoint,
-        IServiceProtocol serviceProtocol,
-        IConnectionFactory connectionFactory,
-        IClientConnectionManagerAspNet clientConnectionManager,
-        ILoggerFactory loggerFactory,
-        IServiceMessageHandler serviceMessageHandler,
-        IServiceEventHandler serviceEventHandler,
-        AckHandler ackHandler,
-        ServiceConnectionType connectionType = ServiceConnectionType.Default)
-        : base(
-              serviceProtocol,
-              serverId,
-              connectionId,
-              endpoint,
-              serviceMessageHandler,
-              serviceEventHandler,
-              connectionType,
-              loggerFactory?.CreateLogger<ServiceConnection>())
+    public ServiceConnection(string serverId,
+                             string connectionId,
+                             HubServiceEndpoint endpoint,
+                             IServiceProtocol serviceProtocol,
+                             IConnectionFactory connectionFactory,
+                             IClientConnectionManagerAspNet clientConnectionManager,
+                             ILoggerFactory loggerFactory,
+                             IServiceMessageHandler serviceMessageHandler,
+                             IServiceEventHandler serviceEventHandler,
+                             AckHandler ackHandler,
+                             ServiceConnectionType connectionType = ServiceConnectionType.Default)
+        : base(serviceProtocol,
+               serverId,
+               connectionId,
+               endpoint,
+               serviceMessageHandler,
+               serviceEventHandler,
+               clientConnectionManager,
+               connectionType,
+               loggerFactory?.CreateLogger<ServiceConnection>())
     {
         _connectionFactory = connectionFactory;
         _clientConnectionManager = clientConnectionManager;
         _ackHandler = ackHandler;
+    }
+
+    public override bool TryAddClientConnection(IClientConnection connection)
+    {
+        var r = _clientConnectionManager.TryAddClientConnection(connection);
+        _clientConnections.TryAdd(connection.ConnectionId, (ClientConnectionContext)connection);
+        return r;
+    }
+
+    public override bool TryRemoveClientConnection(string connectionId, out IClientConnection connection)
+    {
+        var r = _clientConnectionManager.TryRemoveClientConnection(connectionId, out connection);
+        _clientConnections.TryRemove(connectionId, out _);
+        return r;
     }
 
     protected override Task<ConnectionContext> CreateConnection(string target = null)

@@ -27,7 +27,19 @@ internal partial class ClientConnectionContext
             LoggerMessage.Define<string>(LogLevel.Debug, new EventId(5, "MigrationStarting"), "Connection {TransportConnectionId} migrated from another server.");
 
         private static readonly Action<ILogger, string, Exception> _connectedStarting =
-            LoggerMessage.Define<string>(LogLevel.Information, new EventId(11, "ConnectedStarting"), "Connection {TransportConnectionId} started.");
+            LoggerMessage.Define<string>(LogLevel.Information, new EventId(6, "ConnectedStarting"), "Connection {TransportConnectionId} started.");
+
+        private static readonly Action<ILogger, string, Exception> _detectedLongRunningApplicationTask =
+            LoggerMessage.Define<string>(LogLevel.Warning, new EventId(7, "DetectedLongRunningApplicationTask"), "The connection {TransportConnectionId} has a long running application logic that prevents the connection from complete.");
+
+        private static readonly Action<ILogger, string, Exception> _outgoingTaskPaused =
+            LoggerMessage.Define<string>(LogLevel.Information, new EventId(8, "OutgoingTaskPaused"), "Outgoing messages for connection {connectionId} have been paused.");
+
+        private static readonly Action<ILogger, string, Exception> _outgoingTaskResume =
+            LoggerMessage.Define<string>(LogLevel.Information, new EventId(9, "OutgoingTaskResume"), "Outgoing messages for connection {connectionId} are now resumed.");
+
+        private static readonly Action<ILogger, string, Exception> _outgoingTaskPauseAck =
+            LoggerMessage.Define<string>(LogLevel.Information, new EventId(10, "OutgoingTaskPauseAck"), "Acknowlege the pause request for connection {connectionId}.");
 
         public static void WriteMessageToApplication(ILogger<ServiceConnection> logger, long count, string connectionId)
         {
@@ -57,6 +69,26 @@ internal partial class ClientConnectionContext
         public static void ConnectedStarting(ILogger logger, string connectionId)
         {
             _connectedStarting(logger, connectionId, null);
+        }
+
+        public static void DetectedLongRunningApplicationTask(ILogger logger, string connectionId)
+        {
+            _detectedLongRunningApplicationTask(logger, connectionId, null);
+        }
+
+        public static void OutgoingTaskPaused(ILogger logger, string connectionId)
+        {
+            _outgoingTaskPaused(logger, connectionId, null);
+        }
+
+        public static void OutgoingTaskResume(ILogger logger, string connectionId)
+        {
+            _outgoingTaskResume(logger, connectionId, null);
+        }
+
+        public static void OutgoingTaskPauseAck(ILogger logger, string connectionId)
+        {
+            _outgoingTaskPauseAck(logger, connectionId, null);
         }
     }
 }

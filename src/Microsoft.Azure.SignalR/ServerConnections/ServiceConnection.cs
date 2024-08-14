@@ -62,8 +62,18 @@ internal partial class ServiceConnection : ServiceConnectionBase
                              IHubProtocolResolver hubProtocolResolver,
                              ServiceConnectionType connectionType = ServiceConnectionType.Default,
                              GracefulShutdownMode mode = GracefulShutdownMode.Off,
-                             bool allowStatefulReconnects = false
-        ) : base(serviceProtocol, serverId, connectionId, endpoint, serviceMessageHandler, serviceEventHandler, connectionType, loggerFactory?.CreateLogger<ServiceConnection>(), mode, allowStatefulReconnects)
+                             bool allowStatefulReconnects = false)
+        : base(serviceProtocol,
+               serverId,
+               connectionId,
+               endpoint,
+               serviceMessageHandler,
+               serviceEventHandler,
+               clientConnectionManager,
+               connectionType,
+               loggerFactory?.CreateLogger<ServiceConnection>(),
+               mode,
+               allowStatefulReconnects)
     {
         _clientConnectionManager = clientConnectionManager;
         _connectionFactory = connectionFactory;
@@ -73,7 +83,14 @@ internal partial class ServiceConnection : ServiceConnectionBase
         _hubProtocolResolver = hubProtocolResolver;
     }
 
-    internal bool TryRemoveClientConnection(string connectionId, out IClientConnection connection)
+    public override bool TryAddClientConnection(IClientConnection connection)
+    {
+        var r = _clientConnectionManager.TryAddClientConnection(connection);
+        _connectionIds.TryAdd(connection.ConnectionId, connection.InstanceId);
+        return r;
+    }
+
+    public override bool TryRemoveClientConnection(string connectionId, out IClientConnection connection)
     {
         _connectionIds.TryRemove(connectionId, out _);
         var r = _clientConnectionManager.TryRemoveClientConnection(connectionId, out connection);
@@ -107,7 +124,7 @@ internal partial class ServiceConnection : ServiceConnectionBase
             if (_clientConnectionManager.TryRemoveClientConnection(entity.Key, out var c) && c is ClientConnectionContext connection)
             {
                 // We should not wait until all the clients' lifetime ends to restart another service connection
-                _ = PerformDisconnectAsyncCore(connection);
+                _ = connection.PerformDisconnectAsync();
             }
         }
 
@@ -136,7 +153,7 @@ internal partial class ServiceConnection : ServiceConnectionBase
             connection.Features.Set<IConnectionMigrationFeature>(new ConnectionMigrationFeature(from, ServerId));
         }
 
-        AddClientConnection(connection);
+        TryAddClientConnection(connection);
 
         var isDiagnosticClient = false;
         message.Headers.TryGetValue(Constants.AsrsIsDiagnosticClient, out var isDiagnosticClientValue);
@@ -170,8 +187,7 @@ internal partial class ServiceConnection : ServiceConnectionBase
                 // The close connection message must be the last message, so we could complete the pipe.
                 connection.CompleteIncoming();
             }
-
-            return PerformDisconnectAsyncCore(connection);
+            return connection.PerformDisconnectAsync();
         }
         return Task.CompletedTask;
     }
@@ -278,12 +294,11 @@ internal partial class ServiceConnection : ServiceConnectionBase
             if (connection.AbortOnClose)
             {
                 // Inform the Service that we will remove the client because SignalR told us it is disconnected.
-                var serviceMessage =
-                    new CloseConnectionMessage(connection.ConnectionId, errorMessage: exception?.Message);
+                var closeConnectionMessage = new CloseConnectionMessage(connection.ConnectionId, errorMessage: exception?.Message);
 
                 // when it fails, it means the underlying connection is dropped
                 // service is responsible for closing the client connections in this case and there is no need to throw
-                await SafeWriteAsync(serviceMessage);
+                await SafeWriteAsync(closeConnectionMessage);
                 Log.CloseConnection(Logger, connection.ConnectionId);
             }
 
@@ -298,38 +313,6 @@ internal partial class ServiceConnection : ServiceConnectionBase
         {
             connection.OnCompleted();
         }
-    }
-
-    private void AddClientConnection(ClientConnectionContext connection)
-    {
-        _clientConnectionManager.TryAddClientConnection(connection);
-        _connectionIds.TryAdd(connection.ConnectionId, connection.InstanceId);
-    }
-
-    private async Task PerformDisconnectAsyncCore(ClientConnectionContext connection)
-    {
-        connection.ClearBufferedMessages();
-
-        // In normal close, service already knows the client is closed, no need to be informed.
-        connection.AbortOnClose = false;
-
-        // We're done writing to the application output
-        // Let the connection complete incoming
-        connection.CompleteIncoming();
-
-        // wait for the connection's lifetime task to end
-        var lifetime = connection.LifetimeTask;
-
-        // Wait on the application task to complete
-        // We wait gracefully here to be consistent with self-host SignalR
-        await Task.WhenAny(lifetime, connection.DelayTask);
-
-        if (!lifetime.IsCompleted)
-        {
-            Log.DetectedLongRunningApplicationTask(Logger, connection.ConnectionId);
-        }
-
-        await lifetime;
     }
 
     private Task OnClientInvocationAsync(ClientInvocationMessage message)

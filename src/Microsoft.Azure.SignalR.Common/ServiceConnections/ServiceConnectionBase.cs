@@ -50,6 +50,8 @@ internal abstract partial class ServiceConnectionBase : IServiceConnection
 
     private readonly IServiceEventHandler _serviceEventHandler;
 
+    private readonly IClientConnectionManager _clientConnectionManager;
+
     private readonly object _statusLock = new object();
 
     private readonly string _endpointName;
@@ -93,11 +95,11 @@ internal abstract partial class ServiceConnectionBase : IServiceConnection
 
     public Task ConnectionOfflineTask => _serviceConnectionOfflineTcs.Task;
 
-    protected HubServiceEndpoint HubEndpoint { get; }
-
     public string ServerId { get; }
 
     public string ConnectionId { get; }
+
+    protected HubServiceEndpoint HubEndpoint { get; }
 
     protected ILogger Logger { get; }
 
@@ -110,6 +112,7 @@ internal abstract partial class ServiceConnectionBase : IServiceConnection
         HubServiceEndpoint endpoint,
         IServiceMessageHandler serviceMessageHandler,
         IServiceEventHandler serviceEventHandler,
+        IClientConnectionManager clientConnectionManager,
         ServiceConnectionType connectionType,
         ILogger logger,
         GracefulShutdownMode mode = GracefulShutdownMode.Off,
@@ -118,10 +121,11 @@ internal abstract partial class ServiceConnectionBase : IServiceConnection
         ServiceProtocol = serviceProtocol;
         ServerId = serverId;
         ConnectionId = connectionId;
+        HubEndpoint = endpoint;
 
         _connectionType = connectionType;
-        HubEndpoint = endpoint;
         _endpointName = HubEndpoint?.ToString() ?? string.Empty;
+
         if (serviceProtocol != null)
         {
             _cachedPingBytes = serviceProtocol.GetMessageBytes(PingMessage.Instance);
@@ -131,8 +135,10 @@ internal abstract partial class ServiceConnectionBase : IServiceConnection
         }
 
         Logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
         _serviceMessageHandler = serviceMessageHandler;
         _serviceEventHandler = serviceEventHandler;
+        _clientConnectionManager = clientConnectionManager;
     }
 
     public event Action<StatusChange> ConnectionStatusChanged;
@@ -268,6 +274,10 @@ internal abstract partial class ServiceConnectionBase : IServiceConnection
         }
     }
 
+    public abstract bool TryAddClientConnection(IClientConnection connection);
+
+    public abstract bool TryRemoveClientConnection(string connectionId, out IClientConnection connection);
+
     protected abstract Task<ConnectionContext> CreateConnection(string target = null);
 
     protected abstract Task DisposeConnection(ConnectionContext connection);
@@ -353,6 +363,7 @@ internal abstract partial class ServiceConnectionBase : IServiceConnection
             AckMessage ackMessage => OnAckMessageAsync(ackMessage),
             ServiceEventMessage eventMessage => OnEventMessageAsync(eventMessage),
             AccessKeyResponseMessage keyMessage => OnAccessKeyMessageAsync(keyMessage),
+            ConnectionFlowControlMessage flowControlMessage => OnFlowControlMessageAsync(flowControlMessage),
             _ => Task.CompletedTask,
         };
     }
@@ -408,6 +419,77 @@ internal abstract partial class ServiceConnectionBase : IServiceConnection
             }
         }
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Set the server connection offline.
+    /// </summary>
+    /// <returns></returns>
+    private Task OfflineAsync()
+    {
+        Status = ServiceConnectionStatus.Disconnected;
+        Log.ReceivedConnectionOffline(Logger, ConnectionId);
+        return Task.CompletedTask;
+    }
+
+    private async Task PauseClientConnectionAsync(IClientConnection clientConnection)
+    {
+        await clientConnection.PauseAsync();
+        await clientConnection.PauseAckAsync();
+    }
+
+    private Task ResumeClientConnectionAsync(IClientConnection clientConnection)
+    {
+        if (clientConnection.ServiceConnection == this)
+        {
+            return clientConnection.ResumeAsync();
+        }
+
+        if (clientConnection.ServiceConnection is ServiceConnectionBase serviceConnection)
+        {
+            serviceConnection.TryRemoveClientConnection(clientConnection.ConnectionId, out _);
+        }
+        if (TryAddClientConnection(clientConnection))
+        {
+            clientConnection.ServiceConnection = this;
+            return clientConnection.ResumeAsync();
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnFlowControlMessageAsync(ConnectionFlowControlMessage flowControlMessage)
+    {
+        if (flowControlMessage.ConnectionType == ConnectionType.Server)
+        {
+            if (string.Equals(ConnectionId, flowControlMessage.ConnectionId))
+            {
+                return flowControlMessage.Operation switch
+                {
+                    ConnectionFlowControlOperation.Offline => OfflineAsync(),
+                    _ => throw new InvalidOperationException($"Opereration {flowControlMessage.Operation} is invalid on server connections."),
+                };
+            }
+        }
+        else if (flowControlMessage.ConnectionType == ConnectionType.Client)
+        {
+            if (_clientConnectionManager.TryGetClientConnection(flowControlMessage.ConnectionId, out var clientConnection))
+            {
+                if (flowControlMessage.Operation == ConnectionFlowControlOperation.Pause)
+                {
+                    _ = PauseClientConnectionAsync(clientConnection);
+                }
+                else if (flowControlMessage.Operation == ConnectionFlowControlOperation.Resume)
+                {
+                    _ = ResumeClientConnectionAsync(clientConnection);
+                }
+                else
+                {
+                    throw new InvalidOperationException($"Opereration {flowControlMessage.Operation} is invalid on client connections.");
+                }
+            }
+            return Task.CompletedTask;
+        }
+        throw new NotImplementedException($"Unsupported connection type: {flowControlMessage.ConnectionType}");
     }
 
     private async Task<ConnectionContext> EstablishConnectionAsync(string target)
